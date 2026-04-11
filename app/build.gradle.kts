@@ -16,7 +16,7 @@ val localProps = Properties().apply {
 
 android {
     namespace = "com.apkpackager"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.apkpackager"
@@ -27,6 +27,8 @@ android {
 
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"${localProps["github.client.id"] ?: ""}\"")
         buildConfigField("String", "GITHUB_CLIENT_SECRET", "\"${localProps["github.client.secret"] ?: ""}\"")
+
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.apkpackager"
     }
 
     buildTypes {

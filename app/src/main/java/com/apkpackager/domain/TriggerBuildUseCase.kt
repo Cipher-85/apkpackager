@@ -53,14 +53,15 @@ class TriggerBuildUseCase @Inject constructor(
         }
 
         // Poll for the new run
-        var run = pollForRun(owner, repo, branch, dispatchTime)
-        if (run == null) {
+        val initialRun = pollForRun(owner, repo, branch, dispatchTime)
+        if (initialRun == null) {
             onStep(BuildStep.Error("Build was triggered but could not find the workflow run. Check GitHub Actions."))
             return
         }
-        onStep(BuildStep.Queued(run.id))
+        onStep(BuildStep.Queued(initialRun.id))
 
         // Poll until done
+        var run: com.apkpackager.data.github.model.WorkflowRunDto = initialRun
         while (run.status != "completed") {
             kotlinx.coroutines.delay(5_000)
             run = githubRepository.getRun(owner, repo, run.id)
