@@ -11,6 +11,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -26,6 +27,11 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(tokenStore: TokenStore): OkHttpClient {
         return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(90, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .addInterceptor { chain ->
                 val token = tokenStore.getToken()
                 val request = chain.request().newBuilder().apply {

@@ -3,6 +3,7 @@ package com.apkpackager.domain
 import com.apkpackager.data.github.GitHubRepository
 import com.apkpackager.data.github.model.WorkflowRunDto
 import com.apkpackager.data.workflow.AppFramework
+import com.apkpackager.data.workflow.DetectionResult
 import com.apkpackager.data.workflow.FrameworkDetector
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -27,20 +28,21 @@ class TriggerBuildUseCaseTest {
     )
 
     @Test
-    fun `emits Error when framework is UNKNOWN`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns AppFramework.UNKNOWN
+    fun `emits Error when detection fails`() = runTest {
+        coEvery { frameworkDetector.detect(any(), any(), any()) } returns
+            DetectionResult.Failure("No supported framework markers found. Saw: README.md")
 
         val steps = mutableListOf<BuildStep>()
         useCase.execute("owner", "repo", "main") { steps.add(it) }
 
         assertTrue(steps.last() is BuildStep.Error)
         val error = steps.last() as BuildStep.Error
-        assertTrue(error.message.contains("detect", ignoreCase = true))
+        assertTrue(error.message.contains("README.md"))
     }
 
     @Test
     fun `emits Error when workflow setup fails`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns AppFramework.ANDROID
+        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.ANDROID)
         coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns
             Result.failure(Exception("403 Forbidden"))
 
@@ -53,7 +55,7 @@ class TriggerBuildUseCaseTest {
 
     @Test
     fun `emits Error when trigger fails`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns AppFramework.FLUTTER
+        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.FLUTTER)
         coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.triggerBuild(any(), any(), any()) } returns
             Result.failure(Exception("422 Unprocessable"))
@@ -66,7 +68,7 @@ class TriggerBuildUseCaseTest {
 
     @Test
     fun `emits Success for a completed successful run`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns AppFramework.ANDROID
+        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.ANDROID)
         coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.triggerBuild(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.findRunAfter(any(), any(), any(), any()) } returns fakeRun("completed", "success")
@@ -82,7 +84,7 @@ class TriggerBuildUseCaseTest {
 
     @Test
     fun `emits Failure when run concludes with failure`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns AppFramework.ANDROID
+        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.ANDROID)
         coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.triggerBuild(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.findRunAfter(any(), any(), any(), any()) } returns fakeRun("completed", "failure")
@@ -97,7 +99,7 @@ class TriggerBuildUseCaseTest {
 
     @Test
     fun `triggers workflow dispatch exactly once`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns AppFramework.ANDROID
+        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.ANDROID)
         coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.triggerBuild(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.findRunAfter(any(), any(), any(), any()) } returns fakeRun("completed", "success")

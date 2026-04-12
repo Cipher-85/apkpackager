@@ -1,17 +1,18 @@
 package com.apkpackager.ui.auth
 
 import android.app.Application
-import android.content.Intent
+import android.content.Context
+import android.net.Uri
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.apkpackager.data.auth.AuthRedirectBus
 import com.apkpackager.data.auth.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import net.openid.appauth.AuthorizationException
-import net.openid.appauth.AuthorizationResponse
-import net.openid.appauth.AuthorizationService
+import net.openid.appauth.AuthorizationRequest
 import javax.inject.Inject
 
 sealed class LoginState {
@@ -24,7 +25,8 @@ sealed class LoginState {
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     application: Application,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val authRedirectBus: AuthRedirectBus
 ) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow<LoginState>(
@@ -32,47 +34,44 @@ class LoginViewModel @Inject constructor(
     )
     val state: StateFlow<LoginState> = _state
 
-    private var authService: AuthorizationService? = null
+    private var pendingRequest: AuthorizationRequest? = null
 
-    fun startLogin(launchIntent: (Intent) -> Unit) {
-        authService?.dispose()
-        val service = AuthorizationService(getApplication())
-        authService = service
-        val authRequest = authRepository.buildAuthRequest()
-        val authIntent = service.getAuthorizationRequestIntent(authRequest)
-        launchIntent(authIntent)
-        _state.value = LoginState.Loading("Waiting for GitHub authorization...")
-    }
-
-    fun handleAuthResponse(intent: Intent) {
-        authService?.dispose()
-        authService = null
-        val response = AuthorizationResponse.fromIntent(intent)
-        val exception = AuthorizationException.fromIntent(intent)
-
-        when {
-            exception != null -> {
-                _state.value = LoginState.Error(exception.errorDescription ?: "Authorization failed")
-            }
-            response != null -> {
-                _state.value = LoginState.Loading("Exchanging token...")
-                viewModelScope.launch {
-                    try {
-                        authRepository.exchangeCode(getApplication(), response)
-                        _state.value = LoginState.Success
-                    } catch (e: Exception) {
-                        _state.value = LoginState.Error(e.message ?: "Token exchange failed")
-                    }
-                }
-            }
-            else -> {
-                _state.value = LoginState.Idle
-            }
+    init {
+        viewModelScope.launch {
+            authRedirectBus.redirects.collect { uri -> handleRedirect(uri) }
         }
     }
 
-    override fun onCleared() {
-        authService?.dispose()
-        super.onCleared()
+    fun startLogin(context: Context) {
+        val request = authRepository.buildAuthRequest()
+        pendingRequest = request
+        _state.value = LoginState.Loading("Waiting for GitHub authorization...")
+        val tab = CustomTabsIntent.Builder().build()
+        tab.launchUrl(context, request.toUri())
+    }
+
+    private fun handleRedirect(uri: Uri) {
+        val request = pendingRequest ?: return
+        val error = uri.getQueryParameter("error")
+        if (error != null) {
+            val desc = uri.getQueryParameter("error_description") ?: error
+            _state.value = LoginState.Error(desc)
+            pendingRequest = null
+            return
+        }
+        if (uri.getQueryParameter("code") == null) return
+
+        _state.value = LoginState.Loading("Exchanging token...")
+        viewModelScope.launch {
+            try {
+                val response = authRepository.responseFromRedirect(request, uri)
+                authRepository.exchangeCode(getApplication(), response)
+                _state.value = LoginState.Success
+            } catch (e: Exception) {
+                _state.value = LoginState.Error(e.message ?: "Token exchange failed")
+            } finally {
+                pendingRequest = null
+            }
+        }
     }
 }

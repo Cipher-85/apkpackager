@@ -2,6 +2,7 @@ package com.apkpackager.domain
 
 import com.apkpackager.data.github.GitHubRepository
 import com.apkpackager.data.workflow.AppFramework
+import com.apkpackager.data.workflow.DetectionResult
 import com.apkpackager.data.workflow.FrameworkDetector
 import javax.inject.Inject
 
@@ -29,10 +30,12 @@ class TriggerBuildUseCase @Inject constructor(
         onStep: suspend (BuildStep) -> Unit
     ) {
         onStep(BuildStep.DetectingFramework)
-        val framework = frameworkDetector.detect(owner, repo, branch)
-        if (framework == AppFramework.UNKNOWN) {
-            onStep(BuildStep.Error("Could not detect framework. Supported: React Native, Flutter, Android."))
-            return
+        val framework = when (val result = frameworkDetector.detect(owner, repo, branch)) {
+            is DetectionResult.Detected -> result.framework
+            is DetectionResult.Failure -> {
+                onStep(BuildStep.Error(result.reason))
+                return
+            }
         }
         onStep(BuildStep.FrameworkDetected(framework))
 

@@ -32,10 +32,14 @@ class GitHubRepository @Inject constructor(
     }
 
     suspend fun ensureWorkflow(owner: String, repo: String, branch: String, framework: AppFramework): Result<Unit> {
-        return try {
+        val existingSha = try {
             val existingResponse = api.getContents(owner, repo, ".github/workflows/build-apk.yml", branch)
-            val existingSha = if (existingResponse.isSuccessful) existingResponse.body()?.sha else null
+            if (existingResponse.isSuccessful) existingResponse.body()?.sha else null
+        } catch (e: Exception) {
+            return Result.failure(Exception("checking existing workflow file failed: ${e.message ?: e.javaClass.simpleName}", e))
+        }
 
+        return try {
             val yaml = WorkflowTemplateProvider.getTemplate(framework)
             val encoded = Base64.encodeToString(yaml.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
 
@@ -50,7 +54,7 @@ class GitHubRepository @Inject constructor(
             )
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("committing workflow file failed: ${e.message ?: e.javaClass.simpleName}", e))
         }
     }
 

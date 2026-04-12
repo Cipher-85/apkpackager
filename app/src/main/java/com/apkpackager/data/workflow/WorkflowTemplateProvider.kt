@@ -117,7 +117,7 @@ jobs:
       - name: Configure Godot editor settings
         run: |
           mkdir -p "${'$'}HOME/.config/godot"
-          cat > "${'$'}HOME/.config/godot/editor_settings-4.tres" <<EOF
+          cat > "${'$'}HOME/.config/godot/editor_settings-${'$'}{GODOT_VERSION}.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
           [resource]
           export/android/android_sdk_path = "${'$'}{ANDROID_HOME}"
