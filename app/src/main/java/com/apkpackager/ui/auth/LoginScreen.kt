@@ -25,7 +25,7 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("APK Packager", style = MaterialTheme.typography.headlineLarge)
+        Text("Forgewright", style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(8.dp))
         Text(
             "Build and install APKs from your GitHub repos",

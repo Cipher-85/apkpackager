@@ -121,6 +121,17 @@ class GitHubRepository @Inject constructor(
         }
     }
 
+    suspend fun listCommits(owner: String, repo: String, branch: String, page: Int = 1): Result<List<CommitDto>> {
+        return try {
+            val response = api.listCommits(owner, repo, branch, page = page)
+            if (response.isSuccessful) Result.success(response.body() ?: emptyList())
+            else if (response.code() == 401) Result.failure(Exception("Session expired — please log in again"))
+            else Result.failure(Exception("Failed to load commits: HTTP ${response.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun getArtifactDownloadUrl(owner: String, repo: String, artifactId: Long): String =
         "https://api.github.com/repos/$owner/$repo/actions/artifacts/$artifactId/zip"
 

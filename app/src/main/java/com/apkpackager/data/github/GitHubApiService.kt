@@ -99,6 +99,15 @@ interface GitHubApiService {
         @Path("job_id") jobId: Long
     ): Response<ResponseBody>
 
+    @GET("repos/{owner}/{repo}/commits")
+    suspend fun listCommits(
+        @Path("owner") owner: String,
+        @Path("repo") repo: String,
+        @Query("sha") branch: String,
+        @Query("per_page") perPage: Int = 30,
+        @Query("page") page: Int = 1
+    ): Response<List<CommitDto>>
+
     @Streaming
     @GET("repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip")
     suspend fun downloadArtifact(

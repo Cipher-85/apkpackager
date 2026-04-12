@@ -13,6 +13,8 @@ import com.apkpackager.ui.branches.BranchPickerScreen
 import com.apkpackager.ui.branches.BranchPickerViewModel
 import com.apkpackager.ui.build.BuildDashboardScreen
 import com.apkpackager.ui.build.BuildDashboardViewModel
+import com.apkpackager.ui.commits.CommitHistoryScreen
+import com.apkpackager.ui.commits.CommitHistoryViewModel
 import com.apkpackager.ui.history.BuildHistoryScreen
 import com.apkpackager.ui.history.BuildHistoryViewModel
 import com.apkpackager.ui.history.BuildLogScreen
@@ -66,6 +68,32 @@ fun AppNavGraph(isLoggedIn: Boolean = false) {
                 repo = repo,
                 defaultBranch = defaultBranch,
                 onBranchSelected = { branch ->
+                    val encodedOwner = URLEncoder.encode(owner, "UTF-8")
+                    val encodedRepo = URLEncoder.encode(repo, "UTF-8")
+                    val encodedBranch = URLEncoder.encode(branch, "UTF-8")
+                    navController.navigate("commits/$encodedOwner/$encodedRepo/$encodedBranch")
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            "commits/{owner}/{repo}/{branch}",
+            arguments = listOf(
+                navArgument("owner") { type = NavType.StringType },
+                navArgument("repo") { type = NavType.StringType },
+                navArgument("branch") { type = NavType.StringType }
+            )
+        ) { backStack ->
+            val owner = URLDecoder.decode(backStack.arguments?.getString("owner") ?: "", "UTF-8")
+            val repo = URLDecoder.decode(backStack.arguments?.getString("repo") ?: "", "UTF-8")
+            val branch = URLDecoder.decode(backStack.arguments?.getString("branch") ?: "", "UTF-8")
+            val vm: CommitHistoryViewModel = hiltViewModel()
+            CommitHistoryScreen(
+                viewModel = vm,
+                owner = owner,
+                repo = repo,
+                branch = branch,
+                onCommitSelected = { sha, _ ->
                     val encodedOwner = URLEncoder.encode(owner, "UTF-8")
                     val encodedRepo = URLEncoder.encode(repo, "UTF-8")
                     val encodedBranch = URLEncoder.encode(branch, "UTF-8")

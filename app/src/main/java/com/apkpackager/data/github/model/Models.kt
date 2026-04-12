@@ -107,3 +107,22 @@ data class ArtifactDto(
     val name: String,
     @SerialName("size_in_bytes") val sizeInBytes: Long
 )
+
+@Serializable
+data class CommitDto(
+    val sha: String,
+    val commit: CommitInfoDto,
+    @SerialName("html_url") val htmlUrl: String
+)
+
+@Serializable
+data class CommitInfoDto(
+    val message: String,
+    val author: CommitAuthorDto? = null
+)
+
+@Serializable
+data class CommitAuthorDto(
+    val name: String? = null,
+    val date: String? = null
+)
