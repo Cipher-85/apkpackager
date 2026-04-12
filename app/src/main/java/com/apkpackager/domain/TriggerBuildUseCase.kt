@@ -65,12 +65,26 @@ class TriggerBuildUseCase @Inject constructor(
 
         // Poll until done
         var run: com.apkpackager.data.github.model.WorkflowRunDto = initialRun
+        var consecutiveErrors = 0
         while (run.status != "completed") {
             kotlinx.coroutines.delay(5_000)
-            run = githubRepository.getRun(owner, repo, run.id)
-            when (run.status) {
-                "in_progress" -> onStep(BuildStep.InProgress(run.id, run.htmlUrl))
-                "queued", "waiting", "pending" -> onStep(BuildStep.Queued(run.id))
+            try {
+                run = githubRepository.getRun(owner, repo, run.id)
+                consecutiveErrors = 0
+                when (run.status) {
+                    "in_progress" -> onStep(BuildStep.InProgress(run.id, run.htmlUrl))
+                    "queued", "waiting", "pending" -> onStep(BuildStep.Queued(run.id))
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                consecutiveErrors++
+                if (consecutiveErrors >= 5) {
+                    onStep(BuildStep.Error("Lost connection while monitoring build: ${e.message}"))
+                    return
+                }
+                // Back off on repeated failures
+                kotlinx.coroutines.delay(consecutiveErrors * 5_000L)
             }
         }
 
@@ -85,8 +99,14 @@ class TriggerBuildUseCase @Inject constructor(
         owner: String, repo: String, branch: String, afterMs: Long
     ): com.apkpackager.data.github.model.WorkflowRunDto? {
         repeat(12) { // up to 60 seconds
-            val found = githubRepository.findRunAfter(owner, repo, branch, afterMs)
-            if (found != null) return found
+            try {
+                val found = githubRepository.findRunAfter(owner, repo, branch, afterMs)
+                if (found != null) return found
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                throw kotlinx.coroutines.CancellationException()
+            } catch (_: Exception) {
+                // Network error — keep retrying
+            }
             kotlinx.coroutines.delay(5_000)
         }
         return null

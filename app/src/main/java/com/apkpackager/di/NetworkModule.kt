@@ -33,7 +33,7 @@ object NetworkModule {
             .callTimeout(90, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .addInterceptor { chain ->
-                val token = tokenStore.getToken()
+                val token = try { tokenStore.getToken() } catch (_: Exception) { null }
                 val request = chain.request().newBuilder().apply {
                     if (token != null) {
                         addHeader("Authorization", "Bearer $token")

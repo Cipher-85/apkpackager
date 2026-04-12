@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.apkpackager.data.auth.AuthRedirectBus
+import com.apkpackager.data.auth.TokenStore
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -13,14 +14,16 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var authRedirectBus: AuthRedirectBus
+    @Inject lateinit var tokenStore: TokenStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         dispatchOAuthRedirect(intent)
+        val isLoggedIn = tokenStore.hasToken()
         setContent {
             APKPackagerTheme {
-                AppNavGraph()
+                AppNavGraph(isLoggedIn = isLoggedIn)
             }
         }
     }

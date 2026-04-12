@@ -15,6 +15,7 @@ class GitHubRepository @Inject constructor(
         return try {
             val response = api.listRepos(page = page)
             if (response.isSuccessful) Result.success(response.body() ?: emptyList())
+            else if (response.code() == 401) Result.failure(Exception("Session expired — please log in again"))
             else Result.failure(Exception("Failed to load repos: HTTP ${response.code()}"))
         } catch (e: Exception) {
             Result.failure(e)
@@ -25,6 +26,7 @@ class GitHubRepository @Inject constructor(
         return try {
             val response = api.listBranches(owner, repo)
             if (response.isSuccessful) Result.success(response.body() ?: emptyList())
+            else if (response.code() == 401) Result.failure(Exception("Session expired — please log in again"))
             else Result.failure(Exception("Failed to load branches: HTTP ${response.code()}"))
         } catch (e: Exception) {
             Result.failure(e)
@@ -88,6 +90,9 @@ class GitHubRepository @Inject constructor(
         return try {
             val response = api.listAllWorkflowRuns(owner, repo, page = page)
             Result.success(response.workflowRuns)
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 401) Result.failure(Exception("Session expired — please log in again"))
+            else Result.failure(e)
         } catch (e: Exception) {
             Result.failure(e)
         }

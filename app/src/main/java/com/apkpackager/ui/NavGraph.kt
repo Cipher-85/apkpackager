@@ -23,10 +23,11 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 
 @Composable
-fun AppNavGraph() {
+fun AppNavGraph(isLoggedIn: Boolean = false) {
     val navController = rememberNavController()
+    val startDestination = if (isLoggedIn) "repos" else "login"
 
-    NavHost(navController = navController, startDestination = "login") {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
             val vm: LoginViewModel = hiltViewModel()
             LoginScreen(
