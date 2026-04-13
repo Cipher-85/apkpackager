@@ -41,6 +41,11 @@ class GitHubRepository @Inject constructor(
             return Result.failure(Exception("checking existing workflow file failed: ${e.message ?: e.javaClass.simpleName}", e))
         }
 
+        // If workflow already exists, skip overwriting to respect manual edits
+        if (existingSha != null) {
+            return Result.success(Unit)
+        }
+
         return try {
             val yaml = WorkflowTemplateProvider.getTemplate(framework)
             val encoded = Base64.encodeToString(yaml.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
@@ -51,7 +56,7 @@ class GitHubRepository @Inject constructor(
                     message = "chore: add APK build workflow",
                     content = encoded,
                     branch = branch,
-                    sha = existingSha
+                    sha = null
                 )
             )
             Result.success(Unit)
