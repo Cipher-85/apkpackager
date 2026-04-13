@@ -10,6 +10,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
       # REQUIRED: OAuth credentials must be injected or GitHub sign-in will silently fail
@@ -27,6 +28,8 @@ jobs:
             echo "::error::OAUTH_CLIENT_SECRET secret is missing or empty — the built APK will not be able to sign in"
             exit 1
           fi
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
         env:
