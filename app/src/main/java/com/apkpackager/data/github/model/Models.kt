@@ -23,29 +23,10 @@ data class OwnerDto(
 data class BranchDto(val name: String)
 
 @Serializable
-data class FileEntryDto(
-    val name: String,
-    val path: String = "",
-    val type: String,  // "file" or "dir"
-    val sha: String
-)
-
-@Serializable
 data class ContentDto(
     val sha: String,
     val content: String? = null
 )
-
-@Serializable
-data class CreateFileRequest(
-    val message: String,
-    val content: String,
-    val branch: String,
-    val sha: String? = null
-)
-
-@Serializable
-data class CreateFileResponse(val content: ContentDto)
 
 @Serializable
 data class WorkflowDispatchRequest(

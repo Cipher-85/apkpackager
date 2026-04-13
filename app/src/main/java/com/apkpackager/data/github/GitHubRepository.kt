@@ -1,9 +1,6 @@
 package com.apkpackager.data.github
 
-import android.util.Base64
 import com.apkpackager.data.github.model.*
-import com.apkpackager.data.workflow.AppFramework
-import com.apkpackager.data.workflow.WorkflowTemplateProvider
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,35 +30,17 @@ class GitHubRepository @Inject constructor(
         }
     }
 
-    suspend fun ensureWorkflow(owner: String, repo: String, branch: String, framework: AppFramework): Result<Unit> {
-        val existingSha = try {
-            val existingResponse = api.getContents(owner, repo, ".github/workflows/build-apk.yml", branch)
-            if (existingResponse.isSuccessful) existingResponse.body()?.sha else null
-        } catch (e: Exception) {
-            return Result.failure(Exception("checking existing workflow file failed: ${e.message ?: e.javaClass.simpleName}", e))
-        }
-
-        // If workflow already exists, skip overwriting to respect manual edits
-        if (existingSha != null) {
-            return Result.success(Unit)
-        }
-
+    suspend fun verifyWorkflow(owner: String, repo: String, branch: String): Result<Unit> {
         return try {
-            val yaml = WorkflowTemplateProvider.getTemplate(framework)
-            val encoded = Base64.encodeToString(yaml.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-
-            api.createOrUpdateFile(
-                owner, repo, ".github/workflows/build-apk.yml",
-                CreateFileRequest(
-                    message = "chore: add APK build workflow",
-                    content = encoded,
-                    branch = branch,
-                    sha = null
-                )
-            )
-            Result.success(Unit)
+            val response = api.getContents(owner, repo, ".github/workflows/build-apk.yml", branch)
+            when {
+                response.isSuccessful && response.body()?.sha != null -> Result.success(Unit)
+                response.code() == 404 -> Result.failure(Exception(WORKFLOW_MISSING_MESSAGE))
+                response.code() == 401 -> Result.failure(Exception("Session expired — please log in again"))
+                else -> Result.failure(Exception("Could not verify workflow file: HTTP ${response.code()}"))
+            }
         } catch (e: Exception) {
-            Result.failure(Exception("committing workflow file failed: ${e.message ?: e.javaClass.simpleName}", e))
+            Result.failure(Exception("Could not verify workflow file: ${e.message ?: e.javaClass.simpleName}", e))
         }
     }
 
@@ -146,5 +125,13 @@ class GitHubRepository @Inject constructor(
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.parse(dateStr)?.time ?: 0L
         } catch (e: Exception) { 0L }
+    }
+
+    companion object {
+        const val WORKFLOW_MISSING_MESSAGE =
+            "This repo has no .github/workflows/build-apk.yml. " +
+                "Yoinkins does not create build configs — commit a workflow with a workflow_dispatch trigger " +
+                "that uploads an artifact named \"app-debug\" containing the debug APK. " +
+                "See docs/sample-workflows/ for reference workflows."
     }
 }

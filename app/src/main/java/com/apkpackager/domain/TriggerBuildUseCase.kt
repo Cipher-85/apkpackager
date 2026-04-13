@@ -1,15 +1,10 @@
 package com.apkpackager.domain
 
 import com.apkpackager.data.github.GitHubRepository
-import com.apkpackager.data.workflow.AppFramework
-import com.apkpackager.data.workflow.DetectionResult
-import com.apkpackager.data.workflow.FrameworkDetector
 import javax.inject.Inject
 
 sealed class BuildStep {
-    object DetectingFramework : BuildStep()
-    data class FrameworkDetected(val framework: AppFramework) : BuildStep()
-    object CheckingWorkflow : BuildStep()
+    object VerifyingWorkflow : BuildStep()
     object WorkflowReady : BuildStep()
     object Triggering : BuildStep()
     data class Queued(val runId: Long) : BuildStep()
@@ -20,7 +15,6 @@ sealed class BuildStep {
 }
 
 class TriggerBuildUseCase @Inject constructor(
-    private val frameworkDetector: FrameworkDetector,
     private val githubRepository: GitHubRepository
 ) {
     suspend fun execute(
@@ -29,20 +23,10 @@ class TriggerBuildUseCase @Inject constructor(
         branch: String,
         onStep: suspend (BuildStep) -> Unit
     ) {
-        onStep(BuildStep.DetectingFramework)
-        val framework = when (val result = frameworkDetector.detect(owner, repo, branch)) {
-            is DetectionResult.Detected -> result.framework
-            is DetectionResult.Failure -> {
-                onStep(BuildStep.Error(result.reason))
-                return
-            }
-        }
-        onStep(BuildStep.FrameworkDetected(framework))
-
-        onStep(BuildStep.CheckingWorkflow)
-        val workflowResult = githubRepository.ensureWorkflow(owner, repo, branch, framework)
+        onStep(BuildStep.VerifyingWorkflow)
+        val workflowResult = githubRepository.verifyWorkflow(owner, repo, branch)
         if (workflowResult.isFailure) {
-            onStep(BuildStep.Error("Failed to set up workflow: ${workflowResult.exceptionOrNull()?.message}"))
+            onStep(BuildStep.Error(workflowResult.exceptionOrNull()?.message ?: "Workflow verification failed"))
             return
         }
         onStep(BuildStep.WorkflowReady)

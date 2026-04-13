@@ -1,0 +1,61 @@
+name: Build APK
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Detect Godot version from project.godot
+        run: |
+          GODOT_VERSION=$(sed -n 's/.*config\/features=PackedStringArray("\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' project.godot | head -n1)
+          if [ -z "$GODOT_VERSION" ]; then
+            echo "Could not parse Godot version from project.godot" >&2
+            exit 1
+          fi
+          echo "Detected Godot version: $GODOT_VERSION"
+          echo "GODOT_VERSION=$GODOT_VERSION" >> "$GITHUB_ENV"
+          echo "GODOT_MAJOR=$(echo $GODOT_VERSION | cut -d. -f1)" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+      - name: Install Godot and export templates
+        run: |
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q "Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          sudo mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          unzip -q "Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mv templates/* "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+      - name: Generate debug keystore
+        run: |
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android \
+            -keystore "$HOME/debug.keystore" -storepass android \
+            -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+      - name: Configure Godot editor settings
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-${GODOT_MAJOR}.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_HOME}"
+          export/android/debug_keystore = "${HOME}/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+      - name: Import project
+        run: godot --headless --import || true
+      - name: Export debug APK
+        run: |
+          mkdir -p build
+          godot --headless --export-debug "Android" build/app-debug.apk
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-debug
+          path: build/app-debug.apk
+          retention-days: 7

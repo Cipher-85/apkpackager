@@ -30,21 +30,6 @@ interface GitHubApiService {
         @Query("ref") ref: String
     ): Response<ContentDto>
 
-    @GET("repos/{owner}/{repo}/contents/")
-    suspend fun getRootContents(
-        @Path("owner") owner: String,
-        @Path("repo") repo: String,
-        @Query("ref") ref: String
-    ): Response<List<FileEntryDto>>
-
-    @PUT("repos/{owner}/{repo}/contents/{path}")
-    suspend fun createOrUpdateFile(
-        @Path("owner") owner: String,
-        @Path("repo") repo: String,
-        @Path("path", encoded = true) path: String,
-        @Body body: CreateFileRequest
-    ): CreateFileResponse
-
     @POST("repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches")
     suspend fun triggerWorkflow(
         @Path("owner") owner: String,

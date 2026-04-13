@@ -58,13 +58,8 @@ class BuildDashboardViewModel @Inject constructor(
         }
 
         when (step) {
-            is BuildStep.DetectingFramework -> upsert("Detecting framework", StepStatus.IN_PROGRESS)
-            is BuildStep.FrameworkDetected -> {
-                upsert("Detecting framework", StepStatus.DONE)
-                upsert("Framework: ${step.framework.name}", StepStatus.DONE)
-            }
-            is BuildStep.CheckingWorkflow -> upsert("Setting up workflow", StepStatus.IN_PROGRESS)
-            is BuildStep.WorkflowReady -> upsert("Setting up workflow", StepStatus.DONE)
+            is BuildStep.VerifyingWorkflow -> upsert("Verifying workflow", StepStatus.IN_PROGRESS)
+            is BuildStep.WorkflowReady -> upsert("Verifying workflow", StepStatus.DONE)
             is BuildStep.Triggering -> upsert("Triggering build", StepStatus.IN_PROGRESS)
             is BuildStep.Queued -> {
                 upsert("Triggering build", StepStatus.DONE)

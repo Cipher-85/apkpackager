@@ -2,9 +2,6 @@ package com.apkpackager.domain
 
 import com.apkpackager.data.github.GitHubRepository
 import com.apkpackager.data.github.model.WorkflowRunDto
-import com.apkpackager.data.workflow.AppFramework
-import com.apkpackager.data.workflow.DetectionResult
-import com.apkpackager.data.workflow.FrameworkDetector
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -15,9 +12,8 @@ import org.junit.Test
 
 class TriggerBuildUseCaseTest {
 
-    private val frameworkDetector = mockk<FrameworkDetector>()
     private val githubRepository = mockk<GitHubRepository>()
-    private val useCase = TriggerBuildUseCase(frameworkDetector, githubRepository)
+    private val useCase = TriggerBuildUseCase(githubRepository)
 
     private fun fakeRun(status: String, conclusion: String? = null) = WorkflowRunDto(
         id = 42L,
@@ -28,35 +24,21 @@ class TriggerBuildUseCaseTest {
     )
 
     @Test
-    fun `emits Error when detection fails`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns
-            DetectionResult.Failure("No supported framework markers found. Saw: README.md")
+    fun `emits Error when workflow is missing`() = runTest {
+        coEvery { githubRepository.verifyWorkflow(any(), any(), any()) } returns
+            Result.failure(Exception(GitHubRepository.WORKFLOW_MISSING_MESSAGE))
 
         val steps = mutableListOf<BuildStep>()
         useCase.execute("owner", "repo", "main") { steps.add(it) }
 
         assertTrue(steps.last() is BuildStep.Error)
         val error = steps.last() as BuildStep.Error
-        assertTrue(error.message.contains("README.md"))
-    }
-
-    @Test
-    fun `emits Error when workflow setup fails`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.ANDROID)
-        coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns
-            Result.failure(Exception("403 Forbidden"))
-
-        val steps = mutableListOf<BuildStep>()
-        useCase.execute("owner", "repo", "main") { steps.add(it) }
-
-        assertTrue(steps.last() is BuildStep.Error)
-        assertTrue((steps.last() as BuildStep.Error).message.contains("403"))
+        assertTrue(error.message.contains("build-apk.yml"))
     }
 
     @Test
     fun `emits Error when trigger fails`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.FLUTTER)
-        coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns Result.success(Unit)
+        coEvery { githubRepository.verifyWorkflow(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.triggerBuild(any(), any(), any()) } returns
             Result.failure(Exception("422 Unprocessable"))
 
@@ -68,8 +50,7 @@ class TriggerBuildUseCaseTest {
 
     @Test
     fun `emits Success for a completed successful run`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.ANDROID)
-        coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns Result.success(Unit)
+        coEvery { githubRepository.verifyWorkflow(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.triggerBuild(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.findRunAfter(any(), any(), any(), any()) } returns fakeRun("completed", "success")
         coEvery { githubRepository.getRun(any(), any(), any()) } returns fakeRun("completed", "success")
@@ -77,15 +58,14 @@ class TriggerBuildUseCaseTest {
         val steps = mutableListOf<BuildStep>()
         useCase.execute("owner", "repo", "main") { steps.add(it) }
 
-        assertTrue(steps.any { it is BuildStep.FrameworkDetected && it.framework == AppFramework.ANDROID })
+        assertTrue(steps.any { it is BuildStep.WorkflowReady })
         assertTrue(steps.last() is BuildStep.Success)
         assertEquals(42L, (steps.last() as BuildStep.Success).runId)
     }
 
     @Test
     fun `emits Failure when run concludes with failure`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.ANDROID)
-        coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns Result.success(Unit)
+        coEvery { githubRepository.verifyWorkflow(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.triggerBuild(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.findRunAfter(any(), any(), any(), any()) } returns fakeRun("completed", "failure")
         coEvery { githubRepository.getRun(any(), any(), any()) } returns fakeRun("completed", "failure")
@@ -99,8 +79,7 @@ class TriggerBuildUseCaseTest {
 
     @Test
     fun `triggers workflow dispatch exactly once`() = runTest {
-        coEvery { frameworkDetector.detect(any(), any(), any()) } returns DetectionResult.Detected(AppFramework.ANDROID)
-        coEvery { githubRepository.ensureWorkflow(any(), any(), any(), any()) } returns Result.success(Unit)
+        coEvery { githubRepository.verifyWorkflow(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.triggerBuild(any(), any(), any()) } returns Result.success(Unit)
         coEvery { githubRepository.findRunAfter(any(), any(), any(), any()) } returns fakeRun("completed", "success")
         coEvery { githubRepository.getRun(any(), any(), any()) } returns fakeRun("completed", "success")
