@@ -112,66 +112,67 @@ jobs:
       - name: Configure Godot editor settings
         run: |
           mkdir -p "${'$'}HOME/.config/godot"
-          cat > "${'$'}HOME/.config/godot/editor_settings-${'$'}{GODOT_MAJOR}.tres" <<EOF
-[gd_resource type="EditorSettings" format=3]
-[resource]
-export/android/android_sdk_path = "${'$'}{ANDROID_HOME}"
-export/android/debug_keystore = "${'$'}{HOME}/debug.keystore"
-export/android/debug_keystore_user = "androiddebugkey"
-export/android/debug_keystore_pass = "android"
-EOF
+          F="${'$'}HOME/.config/godot/editor_settings-${'$'}{GODOT_MAJOR}.tres"
+          {
+            echo '[gd_resource type="EditorSettings" format=3]'
+            echo '[resource]'
+            echo "export/android/android_sdk_path = \"${'$'}{ANDROID_HOME}\""
+            echo "export/android/debug_keystore = \"${'$'}{HOME}/debug.keystore\""
+            echo 'export/android/debug_keystore_user = "androiddebugkey"'
+            echo 'export/android/debug_keystore_pass = "android"'
+          } > "${'$'}F"
       - name: Ensure export_presets.cfg has an Android preset
         run: |
           if [ ! -f export_presets.cfg ] || ! grep -q 'platform="Android"' export_presets.cfg; then
             echo "No Android preset found — generating a default one."
-            cat > export_presets.cfg <<'PRESET'
-[preset.0]
+            sed 's/^            //' > export_presets.cfg <<'PRESET'
+            [preset.0]
 
-name="Android"
-platform="Android"
-runnable=true
-dedicated_server=false
-custom_features=""
-export_filter="all_resources"
-include_filter=""
-exclude_filter=""
-export_path=""
-encrypt_pck=false
-encrypt_directory=false
-script_export_mode=2
+            name="Android"
+            platform="Android"
+            runnable=true
+            dedicated_server=false
+            custom_features=""
+            export_filter="all_resources"
+            include_filter=""
+            exclude_filter=""
+            export_path=""
+            encrypt_pck=false
+            encrypt_directory=false
+            script_export_mode=2
 
-[preset.0.options]
+            [preset.0.options]
 
-custom_template/debug=""
-custom_template/release=""
-gradle_build/use_gradle_build=false
-gradle_build/export_format=0
-architectures/armeabi-v7a=false
-architectures/arm64-v8a=true
-architectures/x86=false
-architectures/x86_64=false
-version/code=1
-version/name="1.0"
-package/unique_name="com.godot.game"
-package/name=""
-package/signed=true
-package/classify_as_game=true
-package/retain_data_on_uninstall=false
-package/exclude_from_recents=false
-package/app_category=0
-launcher_icons/main_192x192=""
-launcher_icons/adaptive_foreground_432x432=""
-launcher_icons/adaptive_background_432x432=""
-graphics/opengl_debug=false
-xr_features/xr_mode=0
-screen/immersive_mode=true
-screen/support_small=true
-screen/support_normal=true
-screen/support_large=true
-screen/support_xlarge=true
-permissions/custom_permissions=PackedStringArray()
-permissions/internet=true
-PRESET
+            custom_template/debug=""
+            custom_template/release=""
+            gradle_build/use_gradle_build=false
+            gradle_build/export_format=0
+            architectures/armeabi-v7a=false
+            architectures/arm64-v8a=true
+            architectures/x86=false
+            architectures/x86_64=false
+            version/code=1
+            version/name="1.0"
+            package/unique_name="com.godot.game"
+            package/name=""
+            package/signed=true
+            package/classify_as_game=true
+            package/retain_data_on_uninstall=false
+            package/exclude_from_recents=false
+            package/app_category=0
+            launcher_icons/main_192x192=""
+            launcher_icons/adaptive_foreground_432x432=""
+            launcher_icons/adaptive_background_432x432=""
+            graphics/opengl_debug=false
+            xr_features/xr_mode=0
+            screen/immersive_mode=true
+            screen/support_small=true
+            screen/support_normal=true
+            screen/support_large=true
+            screen/support_xlarge=true
+            permissions/custom_permissions=PackedStringArray()
+            permissions/internet=true
+            PRESET
           fi
       - name: Import project
         run: godot --headless --import || true
