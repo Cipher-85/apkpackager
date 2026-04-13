@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -21,9 +20,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.apkpackager.ui.JetBrainsMono
+import com.apkpackager.ui.components.ErrorState
+import com.apkpackager.ui.components.StatusBadge
+import com.apkpackager.ui.components.YoinkinsCard
+import kotlinx.coroutines.launch
 import com.apkpackager.data.github.model.WorkflowJobDto
 import com.apkpackager.data.github.model.WorkflowStepDto
 import com.apkpackager.domain.DownloadState
@@ -42,15 +45,19 @@ fun BuildLogScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val copyToClipboard = { text: String ->
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("Build Log", text))
-        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+        scope.launch { snackbarHostState.showSnackbar("Copied to clipboard") }
+        Unit
     }
 
     LaunchedEffect(Unit) { viewModel.load(owner, repo, runId) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -62,11 +69,14 @@ fun BuildLogScreen(
                             Text(
                                 state.run!!.headBranch!!,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -95,19 +105,12 @@ fun BuildLogScreen(
                 PullToRefreshBox(
                     isRefreshing = state.isRefreshing,
                     onRefresh = { viewModel.refresh(owner, repo, runId) },
-                    modifier = Modifier.fillMaxSize().padding(padding)
+                    modifier = Modifier.fillMaxSize().padding(padding),
                 ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                            Text(state.error!!, color = MaterialTheme.colorScheme.error)
-                            Spacer(Modifier.height(8.dp))
-                            TextButton(onClick = { copyToClipboard(state.error!!) }) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Copy error")
-                            }
-                        }
-                    }
+                    ErrorState(
+                        message = state.error!!,
+                        onRetry = { viewModel.refresh(owner, repo, runId) },
+                    )
                 }
             }
             else -> {
@@ -185,11 +188,11 @@ private fun RunSummaryCard(run: com.apkpackager.data.github.model.WorkflowRunDto
         else -> (run.conclusion ?: run.status) to MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    YoinkinsCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Status: ", style = MaterialTheme.typography.bodyMedium)
-                Text(statusLabel, style = MaterialTheme.typography.bodyMedium, color = statusColor)
+                StatusBadge(label = statusLabel, color = statusColor)
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -224,7 +227,7 @@ private fun JobCard(
         else -> Icons.Default.Error to MaterialTheme.colorScheme.error
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    YoinkinsCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(
                 modifier = Modifier
@@ -308,7 +311,7 @@ private fun JobCard(
                             ) {
                                 Text(
                                     text = logContent,
-                                    fontFamily = FontFamily.Monospace,
+                                    fontFamily = JetBrainsMono,
                                     fontSize = 11.sp,
                                     lineHeight = 16.sp,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -360,7 +363,7 @@ private fun DownloadApkCard(
     onDownload: () -> Unit,
     onInstall: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    YoinkinsCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("APK Artifact", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))

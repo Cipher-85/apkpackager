@@ -5,9 +5,11 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.apkpackager.ui.components.YoinkinsCard
+import kotlinx.coroutines.launch
 import com.apkpackager.domain.BuildStep
 import com.apkpackager.domain.DownloadState
 
@@ -34,6 +38,8 @@ fun BuildDashboardScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Settings return launcher
     val settingsLauncher = rememberLauncherForActivityResult(
@@ -43,12 +49,16 @@ fun BuildDashboardScreen(
     LaunchedEffect(Unit) { viewModel.startBuild(owner, repo, branch) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Column {
                     Text(repo)
                     Text(branch, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }},
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -72,7 +82,14 @@ fun BuildDashboardScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(state.steps) { step ->
-                StepCard(step)
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn() + expandVertically(),
+                ) {
+                    StepCard(step, onCopied = {
+                        scope.launch { snackbarHostState.showSnackbar("Copied to clipboard") }
+                    })
+                }
             }
 
             // Download / Install section
@@ -91,7 +108,7 @@ fun BuildDashboardScreen(
 }
 
 @Composable
-private fun StepCard(step: StepUiItem) {
+private fun StepCard(step: StepUiItem, onCopied: () -> Unit = {}) {
     val context = LocalContext.current
     val (icon, tint) = when (step.status) {
         StepStatus.PENDING -> Icons.Default.RadioButtonUnchecked to MaterialTheme.colorScheme.onSurfaceVariant
@@ -100,10 +117,10 @@ private fun StepCard(step: StepUiItem) {
         StepStatus.ERROR -> Icons.Default.Error to MaterialTheme.colorScheme.error
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    YoinkinsCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             if (step.status == StepStatus.IN_PROGRESS) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -116,13 +133,13 @@ private fun StepCard(step: StepUiItem) {
                 IconButton(onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("Build Error", step.errorDetail ?: step.label))
-                    Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                    onCopied()
                 }) {
                     Icon(
                         Icons.Default.ContentCopy,
                         contentDescription = "Copy error",
                         tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -136,7 +153,7 @@ private fun DownloadInstallSection(
     onDownload: () -> Unit,
     onInstall: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    YoinkinsCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("APK Ready", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))

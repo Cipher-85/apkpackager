@@ -1,5 +1,7 @@
 package com.apkpackager.ui
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
@@ -29,15 +31,44 @@ fun AppNavGraph(isLoggedIn: Boolean = false) {
     val navController = rememberNavController()
     val startDestination = if (isLoggedIn) "repos" else "login"
 
-    NavHost(navController = navController, startDestination = startDestination) {
-        composable("login") {
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        enterTransition = {
+            slideInHorizontally(animationSpec = tween(300)) { it } +
+                fadeIn(animationSpec = tween(300))
+        },
+        exitTransition = {
+            slideOutHorizontally(animationSpec = tween(300)) { -it / 3 } +
+                fadeOut(animationSpec = tween(300))
+        },
+        popEnterTransition = {
+            slideInHorizontally(animationSpec = tween(300)) { -it / 3 } +
+                fadeIn(animationSpec = tween(300))
+        },
+        popExitTransition = {
+            slideOutHorizontally(animationSpec = tween(300)) { it } +
+                fadeOut(animationSpec = tween(300))
+        },
+    ) {
+        composable(
+            "login",
+            enterTransition = { fadeIn(animationSpec = tween(400)) },
+            exitTransition = { fadeOut(animationSpec = tween(300)) },
+        ) {
             val vm: LoginViewModel = hiltViewModel()
             LoginScreen(
                 viewModel = vm,
                 onLoggedIn = { navController.navigate("repos") { popUpTo("login") { inclusive = true } } }
             )
         }
-        composable("repos") {
+        composable(
+            "repos",
+            enterTransition = {
+                fadeIn(animationSpec = tween(400)) +
+                    scaleIn(animationSpec = tween(400), initialScale = 0.92f)
+            },
+        ) {
             val vm: RepoListViewModel = hiltViewModel()
             RepoListScreen(
                 viewModel = vm,

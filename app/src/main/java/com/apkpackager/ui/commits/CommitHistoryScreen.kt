@@ -18,6 +18,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.apkpackager.data.github.model.CommitDto
+import com.apkpackager.ui.components.ErrorState
+import com.apkpackager.ui.components.ShimmerLoadingList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,10 +48,13 @@ fun CommitHistoryScreen(
                         Text(
                             branch,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -59,33 +64,22 @@ fun CommitHistoryScreen(
                     IconButton(onClick = onHistory) {
                         Icon(Icons.Default.History, contentDescription = "Build History")
                     }
-                }
+                },
             )
         }
     ) { padding ->
         when (val s = state) {
             is CommitListState.Loading -> Box(
                 Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                ShimmerLoadingList(itemCount = 5, useCardStyle = true)
             }
 
-            is CommitListState.Error -> Box(
-                Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(s.message, color = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = { viewModel.loadCommits(owner, repo, branch) }) {
-                        Text("Retry")
-                    }
-                }
-            }
+            is CommitListState.Error -> ErrorState(
+                message = s.message,
+                onRetry = { viewModel.loadCommits(owner, repo, branch) },
+                modifier = Modifier.padding(padding),
+            )
 
             is CommitListState.Success -> {
                 PullToRefreshBox(
@@ -106,9 +100,13 @@ fun CommitHistoryScreen(
                                     context.startActivity(
                                         Intent(Intent.ACTION_VIEW, Uri.parse(commit.htmlUrl))
                                     )
-                                }
+                                },
+                                modifier = Modifier.animateItem(),
                             )
-                            HorizontalDivider()
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                thickness = 0.5.dp,
+                            )
                         }
                     }
                 }
@@ -123,10 +121,11 @@ private fun CommitCard(
     isLastKnownGood: Boolean,
     onBuild: () -> Unit,
     onToggleLastKnownGood: () -> Unit,
-    onOpenInBrowser: () -> Unit
+    onOpenInBrowser: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     ListItem(
-        modifier = Modifier.clickable(onClick = onBuild),
+        modifier = modifier.clickable(onClick = onBuild),
         overlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(

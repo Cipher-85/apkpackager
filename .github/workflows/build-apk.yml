@@ -28,8 +28,6 @@ jobs:
             echo "::error::OAUTH_CLIENT_SECRET secret is missing or empty — the built APK will not be able to sign in"
             exit 1
           fi
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
         env:

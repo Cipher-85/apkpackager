@@ -17,6 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.apkpackager.ui.components.EmptyState
+import com.apkpackager.ui.components.ErrorState
+import com.apkpackager.ui.components.ShimmerLoadingList
+import com.apkpackager.ui.components.StatusBadge
+import com.apkpackager.ui.components.YoinkinsCard
 import com.apkpackager.data.github.model.WorkflowRunDto
 import com.apkpackager.domain.DownloadState
 import java.text.SimpleDateFormat
@@ -48,10 +53,13 @@ fun BuildHistoryScreen(
                         Text(
                             branch,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -67,23 +75,20 @@ fun BuildHistoryScreen(
     ) { padding ->
         when (val s = state) {
             is BuildHistoryState.Loading -> {
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                Box(Modifier.fillMaxSize().padding(padding)) {
+                    ShimmerLoadingList(itemCount = 4, useCardStyle = true)
                 }
             }
             is BuildHistoryState.Error -> {
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
                     onRefresh = { viewModel.refresh(owner, repo, branch) },
-                    modifier = Modifier.fillMaxSize().padding(padding)
+                    modifier = Modifier.fillMaxSize().padding(padding),
                 ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                            Text(s.message, color = MaterialTheme.colorScheme.error)
-                            Spacer(Modifier.height(8.dp))
-                            Button(onClick = { viewModel.refresh(owner, repo, branch) }) { Text("Retry") }
-                        }
-                    }
+                    ErrorState(
+                        message = s.message,
+                        onRetry = { viewModel.refresh(owner, repo, branch) },
+                    )
                 }
             }
             is BuildHistoryState.Success -> {
@@ -93,9 +98,7 @@ fun BuildHistoryScreen(
                     modifier = Modifier.fillMaxSize().padding(padding)
                 ) {
                     if (s.runs.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No builds yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        EmptyState(message = "No builds yet")
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -147,8 +150,8 @@ private fun BuildRunCard(
 
     val isSuccess = run.status == "completed" && run.conclusion == "success"
 
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+    YoinkinsCard(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     ) {
         Column {
             Row(
@@ -163,11 +166,7 @@ private fun BuildRunCard(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            statusLabel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = statusColor
-                        )
+                        StatusBadge(label = statusLabel, color = statusColor)
                         if (run.headBranch != null) {
                             Text(
                                 " \u2022 ${run.headBranch}",
