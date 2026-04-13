@@ -27,7 +27,8 @@ fun CommitHistoryScreen(
     repo: String,
     branch: String,
     onCommitSelected: (sha: String, message: String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onHistory: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -51,6 +52,11 @@ fun CommitHistoryScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onHistory) {
+                        Icon(Icons.Default.History, contentDescription = "Build History")
                     }
                 }
             )

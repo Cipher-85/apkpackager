@@ -80,6 +80,7 @@ interface GitHubApiService {
     suspend fun listAllWorkflowRuns(
         @Path("owner") owner: String,
         @Path("repo") repo: String,
+        @Query("branch") branch: String? = null,
         @Query("per_page") perPage: Int = 20,
         @Query("page") page: Int = 1
     ): WorkflowRunsResponse

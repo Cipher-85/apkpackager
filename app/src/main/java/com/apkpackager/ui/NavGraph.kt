@@ -99,7 +99,13 @@ fun AppNavGraph(isLoggedIn: Boolean = false) {
                     val encodedBranch = URLEncoder.encode(branch, "UTF-8")
                     navController.navigate("build/$encodedOwner/$encodedRepo/$encodedBranch")
                 },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onHistory = {
+                    val encodedOwner = URLEncoder.encode(owner, "UTF-8")
+                    val encodedRepo = URLEncoder.encode(repo, "UTF-8")
+                    val encodedBranch = URLEncoder.encode(branch, "UTF-8")
+                    navController.navigate("history/$encodedOwner/$encodedRepo/$encodedBranch")
+                }
             )
         }
         composable(
@@ -119,38 +125,36 @@ fun AppNavGraph(isLoggedIn: Boolean = false) {
                 owner = owner,
                 repo = repo,
                 branch = branch,
-                onBack = { navController.popBackStack() },
-                onHistory = {
-                    val encodedOwner = URLEncoder.encode(owner, "UTF-8")
-                    val encodedRepo = URLEncoder.encode(repo, "UTF-8")
-                    navController.navigate("history/$encodedOwner/$encodedRepo")
-                }
+                onBack = { navController.popBackStack() }
             )
         }
         composable(
-            "history/{owner}/{repo}",
+            "history/{owner}/{repo}/{branch}",
             arguments = listOf(
                 navArgument("owner") { type = NavType.StringType },
-                navArgument("repo") { type = NavType.StringType }
+                navArgument("repo") { type = NavType.StringType },
+                navArgument("branch") { type = NavType.StringType }
             )
         ) { backStack ->
             val owner = URLDecoder.decode(backStack.arguments?.getString("owner") ?: "", "UTF-8")
             val repo = URLDecoder.decode(backStack.arguments?.getString("repo") ?: "", "UTF-8")
+            val branch = URLDecoder.decode(backStack.arguments?.getString("branch") ?: "", "UTF-8")
             val vm: BuildHistoryViewModel = hiltViewModel()
             BuildHistoryScreen(
                 viewModel = vm,
                 owner = owner,
                 repo = repo,
+                branch = branch,
                 onBack = { navController.popBackStack() },
                 onRunSelected = { runId ->
                     val encodedOwner = URLEncoder.encode(owner, "UTF-8")
                     val encodedRepo = URLEncoder.encode(repo, "UTF-8")
-                    navController.navigate("history/$encodedOwner/$encodedRepo/$runId")
+                    navController.navigate("history/$encodedOwner/$encodedRepo/log/$runId")
                 }
             )
         }
         composable(
-            "history/{owner}/{repo}/{runId}",
+            "history/{owner}/{repo}/log/{runId}",
             arguments = listOf(
                 navArgument("owner") { type = NavType.StringType },
                 navArgument("repo") { type = NavType.StringType },

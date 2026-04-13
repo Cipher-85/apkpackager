@@ -29,6 +29,7 @@ fun BuildHistoryScreen(
     viewModel: BuildHistoryViewModel,
     owner: String,
     repo: String,
+    branch: String,
     onBack: () -> Unit,
     onRunSelected: (runId: Long) -> Unit
 ) {
@@ -36,7 +37,7 @@ fun BuildHistoryScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val downloads by viewModel.downloads.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.loadHistory(owner, repo) }
+    LaunchedEffect(Unit) { viewModel.loadHistory(owner, repo, branch) }
 
     Scaffold(
         topBar = {
@@ -45,7 +46,7 @@ fun BuildHistoryScreen(
                     Column {
                         Text("Build History")
                         Text(
-                            "$owner/$repo",
+                            branch,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -57,7 +58,7 @@ fun BuildHistoryScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.refresh(owner, repo) }) {
+                    IconButton(onClick = { viewModel.refresh(owner, repo, branch) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
@@ -73,14 +74,14 @@ fun BuildHistoryScreen(
             is BuildHistoryState.Error -> {
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
-                    onRefresh = { viewModel.refresh(owner, repo) },
+                    onRefresh = { viewModel.refresh(owner, repo, branch) },
                     modifier = Modifier.fillMaxSize().padding(padding)
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
                             Text(s.message, color = MaterialTheme.colorScheme.error)
                             Spacer(Modifier.height(8.dp))
-                            Button(onClick = { viewModel.refresh(owner, repo) }) { Text("Retry") }
+                            Button(onClick = { viewModel.refresh(owner, repo, branch) }) { Text("Retry") }
                         }
                     }
                 }
@@ -88,7 +89,7 @@ fun BuildHistoryScreen(
             is BuildHistoryState.Success -> {
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
-                    onRefresh = { viewModel.refresh(owner, repo) },
+                    onRefresh = { viewModel.refresh(owner, repo, branch) },
                     modifier = Modifier.fillMaxSize().padding(padding)
                 ) {
                     if (s.runs.isEmpty()) {

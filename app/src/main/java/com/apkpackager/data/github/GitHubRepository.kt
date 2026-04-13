@@ -86,9 +86,9 @@ class GitHubRepository @Inject constructor(
     suspend fun getArtifacts(owner: String, repo: String, runId: Long): List<ArtifactDto> =
         api.listArtifacts(owner, repo, runId).artifacts
 
-    suspend fun listBuildHistory(owner: String, repo: String, page: Int = 1): Result<List<WorkflowRunDto>> {
+    suspend fun listBuildHistory(owner: String, repo: String, branch: String? = null, page: Int = 1): Result<List<WorkflowRunDto>> {
         return try {
-            val response = api.listAllWorkflowRuns(owner, repo, page = page)
+            val response = api.listAllWorkflowRuns(owner, repo, branch = branch, page = page)
             Result.success(response.workflowRuns)
         } catch (e: retrofit2.HttpException) {
             if (e.code() == 401) Result.failure(Exception("Session expired — please log in again"))

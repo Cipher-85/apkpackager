@@ -30,8 +30,7 @@ fun BuildDashboardScreen(
     owner: String,
     repo: String,
     branch: String,
-    onBack: () -> Unit,
-    onHistory: () -> Unit = {}
+    onBack: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -56,9 +55,6 @@ fun BuildDashboardScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onHistory) {
-                        Icon(Icons.Default.History, contentDescription = "Build History")
-                    }
                     if (state.runHtmlUrl != null) {
                         IconButton(onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.runHtmlUrl))

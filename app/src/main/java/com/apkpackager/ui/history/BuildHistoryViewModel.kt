@@ -36,11 +36,11 @@ class BuildHistoryViewModel @Inject constructor(
 
     private val apkFiles = mutableMapOf<Long, File>()
 
-    fun loadHistory(owner: String, repo: String) {
+    fun loadHistory(owner: String, repo: String, branch: String? = null) {
         if (_state.value is BuildHistoryState.Success) return
         viewModelScope.launch {
             _state.value = BuildHistoryState.Loading
-            githubRepository.listBuildHistory(owner, repo)
+            githubRepository.listBuildHistory(owner, repo, branch = branch)
                 .onSuccess { runs ->
                     _state.value = BuildHistoryState.Success(runs)
                 }
@@ -50,10 +50,10 @@ class BuildHistoryViewModel @Inject constructor(
         }
     }
 
-    fun refresh(owner: String, repo: String) {
+    fun refresh(owner: String, repo: String, branch: String? = null) {
         viewModelScope.launch {
             _isRefreshing.value = true
-            githubRepository.listBuildHistory(owner, repo)
+            githubRepository.listBuildHistory(owner, repo, branch = branch)
                 .onSuccess { runs ->
                     _state.value = BuildHistoryState.Success(runs)
                 }
