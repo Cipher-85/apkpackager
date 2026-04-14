@@ -33,8 +33,12 @@ class DownloadAndInstallUseCase @Inject constructor(
     ): File? = withContext(Dispatchers.IO) {
         try {
             val downloadDir = File(context.cacheDir, "apk_downloads").also { it.mkdirs() }
-            val zipFile = File(downloadDir, "artifact.zip")
-            val apkFile = File(downloadDir, "app.apk")
+            val zipFile = File(downloadDir, "artifact-$artifactId.zip")
+            val apkFile = File(downloadDir, "app-$artifactId.apk")
+
+            // Delete any prior output so a failed extract can't pass as success
+            apkFile.delete()
+            zipFile.delete()
 
             onProgress(DownloadState.Downloading(0))
 
@@ -67,11 +71,13 @@ class DownloadAndInstallUseCase @Inject constructor(
             }
 
             // Extract APK from zip
+            var extracted = false
             ZipInputStream(zipFile.inputStream()).use { zip ->
                 var entry = zip.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory && entry.name.endsWith(".apk")) {
                         FileOutputStream(apkFile).use { out -> zip.copyTo(out) }
+                        extracted = true
                         break
                     }
                     entry = zip.nextEntry
@@ -79,7 +85,7 @@ class DownloadAndInstallUseCase @Inject constructor(
             }
             zipFile.delete()
 
-            if (!apkFile.exists()) {
+            if (!extracted) {
                 onProgress(DownloadState.Error("No APK found in artifact archive"))
                 return@withContext null
             }

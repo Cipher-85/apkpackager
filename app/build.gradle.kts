@@ -22,8 +22,8 @@ android {
         applicationId = "com.apkpackager"
         minSdk = 26
         targetSdk = 35
-        versionCode = 20
-        versionName = "1.19"
+        versionCode = 21
+        versionName = "1.20"
 
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"${localProps["github.client.id"] ?: ""}\"")
         buildConfigField("String", "GITHUB_CLIENT_SECRET", "\"${localProps["github.client.secret"] ?: ""}\"")
