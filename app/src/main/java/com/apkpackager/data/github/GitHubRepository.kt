@@ -57,11 +57,14 @@ class GitHubRepository @Inject constructor(
         }
     }
 
-    suspend fun findRunAfter(owner: String, repo: String, branch: String, afterEpochMs: Long): WorkflowRunDto? {
+    suspend fun getLatestRunId(owner: String, repo: String, branch: String): Long {
         val runs = api.listWorkflowRuns(owner, repo, branch = branch).workflowRuns
-        return runs.firstOrNull { run ->
-            parseIso8601(run.createdAt) >= afterEpochMs
-        }
+        return runs.maxOfOrNull { it.id } ?: 0L
+    }
+
+    suspend fun findRunAfterId(owner: String, repo: String, branch: String, afterRunId: Long): WorkflowRunDto? {
+        val runs = api.listWorkflowRuns(owner, repo, branch = branch).workflowRuns
+        return runs.filter { it.id > afterRunId }.minByOrNull { it.id }
     }
 
     suspend fun getRun(owner: String, repo: String, runId: Long): WorkflowRunDto =
@@ -118,14 +121,6 @@ class GitHubRepository @Inject constructor(
 
     fun getArtifactDownloadUrl(owner: String, repo: String, artifactId: Long): String =
         "https://api.github.com/repos/$owner/$repo/actions/artifacts/$artifactId/zip"
-
-    private fun parseIso8601(dateStr: String): Long {
-        return try {
-            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply {
-                timeZone = java.util.TimeZone.getTimeZone("UTC")
-            }.parse(dateStr)?.time ?: 0L
-        } catch (e: Exception) { 0L }
-    }
 
     companion object {
         const val WORKFLOW_MISSING_MESSAGE =

@@ -32,15 +32,20 @@ class TriggerBuildUseCase @Inject constructor(
         onStep(BuildStep.WorkflowReady)
 
         onStep(BuildStep.Triggering)
-        val dispatchTime = System.currentTimeMillis() - 5_000 // small buffer for clock skew
+        val baselineRunId = try {
+            githubRepository.getLatestRunId(owner, repo, branch)
+        } catch (e: Exception) {
+            onStep(BuildStep.Error("Could not read current build state: ${e.message ?: e.javaClass.simpleName}"))
+            return
+        }
         val triggerResult = githubRepository.triggerBuild(owner, repo, branch)
         if (triggerResult.isFailure) {
             onStep(BuildStep.Error("Failed to trigger build: ${triggerResult.exceptionOrNull()?.message}"))
             return
         }
 
-        // Poll for the new run
-        val initialRun = pollForRun(owner, repo, branch, dispatchTime)
+        // Poll for the run we just dispatched (any run with id > baseline is newer than anything pre-dispatch)
+        val initialRun = pollForRun(owner, repo, branch, baselineRunId)
         if (initialRun == null) {
             onStep(BuildStep.Error("Build was triggered but could not find the workflow run. Check GitHub Actions."))
             return
@@ -80,11 +85,11 @@ class TriggerBuildUseCase @Inject constructor(
     }
 
     private suspend fun pollForRun(
-        owner: String, repo: String, branch: String, afterMs: Long
+        owner: String, repo: String, branch: String, afterRunId: Long
     ): com.apkpackager.data.github.model.WorkflowRunDto? {
         repeat(12) { // up to 60 seconds
             try {
-                val found = githubRepository.findRunAfter(owner, repo, branch, afterMs)
+                val found = githubRepository.findRunAfterId(owner, repo, branch, afterRunId)
                 if (found != null) return found
             } catch (_: kotlinx.coroutines.CancellationException) {
                 throw kotlinx.coroutines.CancellationException()
